@@ -1,8 +1,3 @@
-###############################################################################
-# Nexus Agent - Professional Makefile
-# Supports: Out-of-source builds, debug/release, dependency tracking, install
-###############################################################################
-
 # === Project Metadata ===
 PROJECT      := agent
 VERSION      := 1.0.0
@@ -59,9 +54,7 @@ else
     Q :=
 endif
 
-###############################################################################
 # Targets
-###############################################################################
 
 .PHONY: all clean rebuild install uninstall test lint format docs help
 
