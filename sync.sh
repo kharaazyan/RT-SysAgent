@@ -11,6 +11,6 @@ git remote get-url upstream > /dev/null 2>&1 || \
 
 git fetch upstream "$UPSTREAM_BRANCH"
 
-git merge --no-ff "upstream/$UPSTREAM_BRANCH" -m "Merge upstream/$UPSTREAM_BRANCH into $LOCAL_BRANCH"
+git merge --no-ff "upstream/$UPSTREAM_BRANCH" -X ours -m "Merge upstream/$UPSTREAM_BRANCH into $LOCAL_BRANCH"
 
 git push origin "$LOCAL_BRANCH"
