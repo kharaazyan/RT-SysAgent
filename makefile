@@ -64,7 +64,7 @@ endif
 # === External Dependencies URLs ===
 IPFS_URL := https://dist.ipfs.tech/kubo/v0.22.0/kubo_v0.22.0_linux-amd64.tar.gz
 NLOHMANN_JSON_URL := https://github.com/nlohmann/json/releases/download/v3.12.0/json.hpp
-AHO_CORASICK_URL := https://raw.githubusercontent.com/cloudflare/ahocorasick/master/ahocorasick.hpp
+AHO_CORASICK_URL := https://raw.githubusercontent.com/ccbrown/aho-corasick/master/aho_corasick.hpp
 AHO_CORASICK_ALT_URL := https://raw.githubusercontent.com/mischasan/aho-corasick/master/aho_corasick.hpp
 
 # === Dependency Checks ===
@@ -132,9 +132,7 @@ download-external-deps:
 	@echo "$(BLUE)[INFO] Downloading Aho-Corasick algorithm...$(NC)"
 	@if [ ! -f $(EXTERNAL_DIR)/aho_corasick.hpp ]; then \
 		($(WGET) -q $(AHO_CORASICK_URL) -O $(EXTERNAL_DIR)/aho_corasick.hpp || \
-		$(CURL) -L -o $(EXTERNAL_DIR)/aho_corasick.hpp $(AHO_CORASICK_URL) || \
-		$(WGET) -q $(AHO_CORASICK_ALT_URL) -O $(EXTERNAL_DIR)/aho_corasick.hpp || \
-		$(CURL) -L -o $(EXTERNAL_DIR)/aho_corasick.hpp $(AHO_CORASICK_ALT_URL)) && \
+		$(CURL) -L -o $(EXTERNAL_DIR)/aho_corasick.hpp $(AHO_CORASICK_URL)) && \
 		echo "$(GREEN)[✔] Aho-Corasick downloaded$(NC)" || \
 		echo "$(YELLOW)[WARN] Failed to download Aho-Corasick, using local copy$(NC)"; \
 	else \
