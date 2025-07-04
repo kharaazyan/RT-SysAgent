@@ -166,18 +166,18 @@ all: deps agent reader
 deps: install-deps
 
 # Build agent executable
-agent: $(TARGET)
+agent: $(BIN_DIR)/agent
 	@echo "$(GREEN)[✔] Agent built successfully$(NC)"
 
 # Build reader executable
-reader: $(READER_TARGET)
+reader: $(BIN_DIR)/reader
 	@echo "$(GREEN)[✔] Reader built successfully$(NC)"
 
-$(TARGET): $(filter-out $(BUILD_DIR)/reader.o,$(OBJS)) | $(BIN_DIR)
+$(BIN_DIR)/agent: $(BUILD_DIR)/agent.o $(BUILD_DIR)/mmap_queue.o $(BUILD_DIR)/shared_memory.o
 	@echo "$(YELLOW)[Linking] $@$(NC)"
 	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
-$(READER_TARGET): $(BUILD_DIR)/reader.o | $(BIN_DIR)
+$(BIN_DIR)/reader: $(BUILD_DIR)/reader.o $(BUILD_DIR)/mmap_queue.o $(BUILD_DIR)/shared_memory.o
 	@echo "$(YELLOW)[Linking] $@$(NC)"
 	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
