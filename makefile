@@ -173,11 +173,11 @@ agent: $(BIN_DIR)/agent
 reader: $(BIN_DIR)/reader
 	@echo "$(GREEN)[✔] Reader built successfully$(NC)"
 
-$(BIN_DIR)/agent: $(BUILD_DIR)/agent.o $(BUILD_DIR)/mmap_queue.o $(BUILD_DIR)/shared_memory.o
+$(BIN_DIR)/agent: $(BUILD_DIR)/agent.o | $(BIN_DIR) $(BUILD_DIR)
 	@echo "$(YELLOW)[Linking] $@$(NC)"
 	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
-$(BIN_DIR)/reader: $(BUILD_DIR)/reader.o $(BUILD_DIR)/mmap_queue.o $(BUILD_DIR)/shared_memory.o
+$(BIN_DIR)/reader: $(BUILD_DIR)/reader.o | $(BIN_DIR) $(BUILD_DIR)
 	@echo "$(YELLOW)[Linking] $@$(NC)"
 	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
