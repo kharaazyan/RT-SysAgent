@@ -142,7 +142,7 @@ download-external-deps:
 	fi
 
 # Check and install system dependencies
-check-deps: check-compiler check-ipfs check-system-libs
+check-deps: check-ipfs check-system-libs
 	@echo "$(BLUE)[INFO] Checking system dependencies...$(NC)"
 	@which apt-get > /dev/null 2>&1 || \
 		(echo "$(RED)[ERROR] apt-get not found. This makefile is for Ubuntu only.$(NC)" && exit 1)
