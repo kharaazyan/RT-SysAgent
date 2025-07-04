@@ -64,8 +64,7 @@ endif
 # === External Dependencies URLs ===
 IPFS_URL := https://dist.ipfs.tech/kubo/v0.22.0/kubo_v0.22.0_linux-amd64.tar.gz
 NLOHMANN_JSON_URL := https://github.com/nlohmann/json/releases/download/v3.12.0/json.hpp
-AHO_CORASICK_URL := https://raw.githubusercontent.com/ccbrown/aho-corasick/master/aho_corasick.hpp
-AHO_CORASICK_ALT_URL := https://raw.githubusercontent.com/mischasan/aho-corasick/master/aho_corasick.hpp
+AHO_CORASICK_URL := https://raw.githubusercontent.com/cjgdev/aho_corasick/master/src/aho_corasick/aho_corasick.hpp
 
 # === Dependency Checks ===
 .PHONY: check-deps install-deps check-ipfs install-ipfs download-external-deps check-system-libs
