@@ -137,7 +137,9 @@ void usb_monitor(QueueType* queue) {
 
 void file_delete_monitor(QueueType* queue) {
     const std::vector<std::string> watch_paths = {
-        "/home/sergey/Documents", "/etc", "/home/sergey/Desktop"
+        std::string(std::getenv("HOME")) + "/Documents",
+        "/etc",
+        std::string(std::getenv("HOME")) + "/Desktop"
     };
 
     int inotify_fd = inotify_init1(IN_NONBLOCK);

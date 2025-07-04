@@ -1,0 +1,197 @@
+unauthorized access
+permission denied
+access denied
+authentication failure
+failed login
+invalid user
+segfault
+segmentation fault
+core dumped
+panic
+kernel panic
+oom-killer
+out of memory
+disk failure
+i/o error
+filesystem error
+mount failure
+device not ready
+usb disconnect
+usb device added
+connection refused
+network unreachable
+no route to host
+packet loss
+connection timeout
+port scan
+scan detected
+intrusion detected
+malware detected
+root access
+root login
+sudo failure
+failed password
+invalid password
+session opened
+session closed
+rejected
+blacklisted
+firewall drop
+iptables drop
+selinux violation
+audit failure
+kernel bug
+modprobe error
+service crash
+daemon died
+zombie process
+critical error
+fatal error
+systemd failure
+service failed
+watchdog timeout
+login attempt
+brute force
+login rate limit
+tcp reset
+dns spoof
+suspicious activity
+invalid certificate
+certificate expired
+key mismatch
+ssh disconnect
+ssh login failed
+ssh key rejected
+ransomware
+phishing
+trojan
+worm
+exploit
+buffer overflow
+heap corruption
+stack smash
+format string
+double free
+race condition
+memory leak
+unexpected reboot
+system halt
+service not found
+executable not found
+segmentation violation
+unknown device
+invalid configuration
+tampering
+configuration mismatch
+unexpected behavior
+error while loading shared libraries
+unable to resolve host
+failed to execute
+fork failed
+cannot allocate memory
+unhandled exception
+assertion failed
+invalid opcode
+illegal instruction
+trap divide error
+cpu soft lockup
+watchdog detected hard lockup
+clock skew
+time jump detected
+ntp error
+ntp time correction
+drift too large
+file not found
+no such file or directory
+read-only filesystem
+read error
+write error
+corrupted filesystem
+journal failure
+mounting failed
+disk quota exceeded
+inode exhaustion
+no space left on device
+device busy
+device error
+input/output error
+media failure
+firmware bug
+hardware error
+machine check error
+cpu overheating
+fan failure
+temperature threshold exceeded
+voltage out of range
+power supply failure
+battery failure
+acpi error
+bios error
+thermal event
+memory corruption
+dma error
+pci error
+usb enumeration failed
+device reset
+link down
+interface down
+interface reset
+network interface error
+packet corruption
+ip conflict
+dns error
+name resolution failure
+hostname lookup failure
+dhcp failure
+link flapping
+bridge loop detected
+network storm
+network congestion
+arp spoofing
+mac address conflict
+spoofed packet
+unexpected packet
+tcp handshake failed
+tcp retransmission
+ssl handshake failed
+tls alert
+tls negotiation failed
+certificate error
+expired certificate
+self-signed certificate
+untrusted certificate
+revoked certificate
+cipher mismatch
+invalid hostname
+proxy error
+vpn error
+tunnel failure
+ipsec negotiation failed
+route flapping
+routing table error
+bgp session dropped
+ospf adjacency lost
+icmp flood
+syn flood
+dos attack detected
+ddos attack
+malformed packet
+invalid header
+port unreachable
+service unavailable
+unknown protocol
+log tampering
+log rotation failed
+auditd buffer overflow
+selinux alert
+apparmor violation
+container exited unexpectedly
+container restart loop
+docker daemon error
+kubelet error
+kubernetes api error
+pod eviction
+taint detected
+node not ready
+kube-apiserver crash
+etcd connection failed

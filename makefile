@@ -23,7 +23,7 @@ GIT          := git
 
 # === Flags ===
 CXXFLAGS     := -std=c++20 -Wall -Wextra -I$(INC_DIR) -I$(EXTERNAL_DIR) -pthread
-LDFLAGS      := -pthread -ludev -lsystemd
+LDFLAGS      := -pthread -ludev -lsystemd -lcrypto
 DEBUG_FLAGS  := -g -O0 -DDEBUG
 RELEASE_FLAGS:= -O2 -DNDEBUG
 

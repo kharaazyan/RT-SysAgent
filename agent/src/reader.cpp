@@ -1,5 +1,219 @@
 #include <iostream>
+#include <fstream>
+#include <csignal>
+#include <thread>
+#include <atomic>
+#include <chrono>
+#include <vector>
+#include <mutex>
+#include <filesystem>
+#include <sstream>
+#include <cstdio>
+#include <array>
+#include "shared_memory.hpp"
+#include "mmap_queue.hpp"
+#include "log_utils.hpp"
+#include "json.hpp"
+
+using json = nlohmann::json;
+
+// --- Constants ---
+constexpr size_t QUEUE_SIZE = 16384;
+constexpr size_t TEXT_SIZE = 256;
+constexpr int NUM_WORKERS = 4;
+constexpr int LOG_THRESHOLD = 50;
+constexpr int TIME_THRESHOLD_SECONDS = 4;
+constexpr int WORKER_SLEEP_MS = 1;
+constexpr int FLUSHER_SLEEP_MS = 1000;
+const std::string TMP_DIR = "./tmp";
+const std::string JSON_FILE = TMP_DIR + "/log_batch.json";
+const std::string IPNS_KEY = "log-agent";
+
+// --- Globals ---
+std::atomic<bool> g_running(true);
+std::mutex log_mutex;
+std::mutex cid_mutex;
+std::vector<json> log_bucket;
+std::string g_prev_cid = "null";
+std::string g_ipns_id = "";
+std::chrono::steady_clock::time_point last_push_time;
+
+// --- Data Structures ---
+struct RawEvent {
+    uint8_t type; // 0 = SYSLOG_LINE, 1 = USB_EVENT
+    uint64_t event_id;
+    char text[TEXT_SIZE];
+};
+using QueueType = MmapQueue<RawEvent, QUEUE_SIZE>;
+
+// --- Signal Handler ---
+void signal_handler(int) {
+    g_running = false;
+}
+
+// --- Utility: Fast system call wrapper ---
+int fast_system(const std::string& cmd) {
+    std::array<char, 128> buffer;
+    FILE* pipe = popen((cmd + " 2>&1").c_str(), "r");
+    if (!pipe) return -1;
+    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr);
+    return pclose(pipe);
+}
+
+// --- Resolve IPNS ID for key name ---
+std::string get_ipns_id_for_key(const std::string& key_name) {
+    FILE* pipe = popen("ipfs key list -l", "r");
+    if (!pipe) throw std::runtime_error("Failed to run 'ipfs key list -l'");
+    char buffer[256];
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        std::istringstream iss(buffer);
+        std::string peer_id, name;
+        iss >> peer_id >> name;
+        if (name == key_name) {
+            pclose(pipe);
+            return peer_id;
+        }
+    }
+    pclose(pipe);
+    throw std::runtime_error("IPNS key '" + key_name + "' not found.");
+}
+
+// --- IPNS Resolver ---
+std::string resolve_ipns(const std::string& ipns_id) {
+    std::string cmd = "ipfs name resolve --nocache /ipns/" + ipns_id + " --timeout=5s";
+    FILE* pipe = popen(cmd.c_str(), "r");
+    if (!pipe) return "null";
+    char buffer[256];
+    std::string result;
+    while (fgets(buffer, sizeof(buffer), pipe)) result += buffer;
+    pclose(pipe);
+    if (result.rfind("/ipfs/", 0) == 0)
+        return result.substr(6);
+    return "null";
+}
+
+// --- Push Logic ---
+void push_log_bucket_if_needed(bool force = false) {
+    std::lock_guard<std::mutex> lock(log_mutex);
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - last_push_time).count();
+    if (!force && log_bucket.size() < LOG_THRESHOLD && elapsed < TIME_THRESHOLD_SECONDS)
+        return;
+    if (log_bucket.empty()) return;
+
+    std::vector<std::string> raw_logs;
+    for (const auto& log : log_bucket) raw_logs.push_back(log.dump());
+
+    std::string prev_cid;
+    {
+        std::lock_guard<std::mutex> cid_lock(cid_mutex);
+        prev_cid = g_prev_cid;
+    }
+
+    std::string payload = format_logs_json(raw_logs, prev_cid);
+
+    try {
+        std::string pubkey_path = "./keys/public_key.pem";
+        std::vector<uint8_t> aes_key = generate_random_bytes(32);
+        std::vector<uint8_t> iv, tag;
+        std::vector<uint8_t> ciphertext = aes_gcm_encrypt(payload, aes_key, iv, tag);
+        std::vector<uint8_t> encrypted_key = rsa_encrypt_key(aes_key, pubkey_path);
+        std::string encrypted_file = JSON_FILE + ".enc";
+        write_minimal_encrypted_json(encrypted_file, ciphertext, iv, tag, encrypted_key);
+
+        std::string cid = ipfs_add(encrypted_file);
+        std::cout << "[IPFS] Pushed CID: " << cid << "\n";
+
+        {
+            std::lock_guard<std::mutex> cid_lock(cid_mutex);
+            g_prev_cid = cid;
+        }
+
+        // --- Fast IPNS publish ---
+        std::string publish_cmd =
+            "ipfs name publish --key=" + IPNS_KEY +
+            " --allow-offline --ttl=0s /ipfs/" + cid;
+        int ret = fast_system(publish_cmd);
+        if (ret == 0)
+            std::cout << "[IPNS] Head updated to: " << cid << "\n";
+        else
+            std::cerr << "[IPNS] Failed to update IPNS head.\n";
+
+        log_bucket.clear();
+        last_push_time = std::chrono::steady_clock::now();
+    } catch (const std::exception& e) {
+        std::cerr << "[ERROR] Push failed: " << e.what() << "\n";
+    }
+}
+
+// --- Worker Thread ---
+void worker_thread(int id, QueueType* queue) {
+    while (g_running) {
+        RawEvent ev{};
+        if (queue->dequeue(ev)) {
+            json log_entry = {
+                {"event_id", ev.event_id},
+                {"type", ev.type == 0 ? "SYSLOG" : ev.type == 1 ? "USB" : "UNKNOWN"},
+                {"message", std::string(ev.text)},
+                {"timestamp", current_timestamp()}
+            };
+            {
+                std::lock_guard<std::mutex> lock(log_mutex);
+                log_bucket.push_back(log_entry);
+            }
+            std::cout << "[" << log_entry["type"] << "][Worker " << id << "] " << ev.text << "\n";
+            push_log_bucket_if_needed();
+        } else {
+            std::this_thread::sleep_for(std::chrono::milliseconds(WORKER_SLEEP_MS));
+        }
+    }
+}
+
+// --- Periodic Flush Thread ---
+void periodic_flusher() {
+    while (g_running) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(FLUSHER_SLEEP_MS));
+        push_log_bucket_if_needed();
+    }
+}
+
+// --- Ensure Temp Directory ---
+void ensure_directories() {
+    std::filesystem::create_directories(TMP_DIR);
+}
+
+// --- Main ---
 int main() {
-    std::cout << "Reader initializing...\n";
+    std::cout << ":rocket: Reader initializing...\n";
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
+
+    ensure_directories();
+
+    try {
+        g_ipns_id = get_ipns_id_for_key(IPNS_KEY);
+        g_prev_cid = resolve_ipns(g_ipns_id);
+        std::cout << "[IPNS] Bootstrapped from: " << g_prev_cid << "\n";
+    } catch (const std::exception& e) {
+        std::cerr << "[IPNS] Could not bootstrap IPNS: " << e.what() << "\n";
+    }
+
+    SharedMemory<QueueType> shm(TMP_DIR + "/event_queue_shm", false);
+    QueueType* queue = shm.get();
+
+    log_bucket.reserve(LOG_THRESHOLD * 2);
+    last_push_time = std::chrono::steady_clock::now();
+
+    std::vector<std::thread> pool;
+    for (int i = 0; i < NUM_WORKERS; ++i)
+        pool.emplace_back(worker_thread, i, queue);
+
+    std::thread flusher(periodic_flusher);
+
+    for (auto& t : pool) t.join();
+    flusher.join();
+
+    push_log_bucket_if_needed(true);
+    std::cout << ":checkered_flag: Reader shutdown.\n";
     return 0;
 }
