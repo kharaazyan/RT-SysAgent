@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+set -euo pipefail
 read -p "Enter commit name: " x
 git add .
 git commit -m "$x"
