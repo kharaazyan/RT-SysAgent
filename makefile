@@ -64,8 +64,7 @@ endif
 # === External Dependencies URLs ===
 IPFS_URL := https://dist.ipfs.tech/kubo/v0.22.0/kubo_v0.22.0_linux-amd64.tar.gz
 NLOHMANN_JSON_URL := https://github.com/nlohmann/json/releases/download/v3.12.0/json.hpp
-AHO_CORASICK_URL := https://raw.githubusercontent.com/cloudflare/ahocorasick/master/ahocorasick.hpp
-AHO_CORASICK_ALT_URL := https://raw.githubusercontent.com/mischasan/aho-corasick/master/aho_corasick.hpp
+AHO_CORASICK_URL := https://raw.githubusercontent.com/cjgdev/aho_corasick/master/src/aho_corasick/aho_corasick.hpp
 
 # === Dependency Checks ===
 .PHONY: check-deps install-deps check-ipfs install-ipfs download-external-deps check-system-libs
@@ -132,9 +131,7 @@ download-external-deps:
 	@echo "$(BLUE)[INFO] Downloading Aho-Corasick algorithm...$(NC)"
 	@if [ ! -f $(EXTERNAL_DIR)/aho_corasick.hpp ]; then \
 		($(WGET) -q $(AHO_CORASICK_URL) -O $(EXTERNAL_DIR)/aho_corasick.hpp || \
-		$(CURL) -L -o $(EXTERNAL_DIR)/aho_corasick.hpp $(AHO_CORASICK_URL) || \
-		$(WGET) -q $(AHO_CORASICK_ALT_URL) -O $(EXTERNAL_DIR)/aho_corasick.hpp || \
-		$(CURL) -L -o $(EXTERNAL_DIR)/aho_corasick.hpp $(AHO_CORASICK_ALT_URL)) && \
+		$(CURL) -L -o $(EXTERNAL_DIR)/aho_corasick.hpp $(AHO_CORASICK_URL)) && \
 		echo "$(GREEN)[✔] Aho-Corasick downloaded$(NC)" || \
 		echo "$(YELLOW)[WARN] Failed to download Aho-Corasick, using local copy$(NC)"; \
 	else \
@@ -169,18 +166,18 @@ all: deps agent reader
 deps: install-deps
 
 # Build agent executable
-agent: $(TARGET)
+agent: $(BIN_DIR)/agent
 	@echo "$(GREEN)[✔] Agent built successfully$(NC)"
 
 # Build reader executable
-reader: $(READER_TARGET)
+reader: $(BIN_DIR)/reader
 	@echo "$(GREEN)[✔] Reader built successfully$(NC)"
 
-$(TARGET): $(filter-out $(BUILD_DIR)/reader.o,$(OBJS)) | $(BIN_DIR)
+$(BIN_DIR)/agent: $(BUILD_DIR)/agent.o $(BUILD_DIR)/mmap_queue.o $(BUILD_DIR)/shared_memory.o
 	@echo "$(YELLOW)[Linking] $@$(NC)"
 	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
-$(READER_TARGET): $(BUILD_DIR)/reader.o | $(BIN_DIR)
+$(BIN_DIR)/reader: $(BUILD_DIR)/reader.o $(BUILD_DIR)/mmap_queue.o $(BUILD_DIR)/shared_memory.o
 	@echo "$(YELLOW)[Linking] $@$(NC)"
 	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
