@@ -16,8 +16,6 @@
 #include "mmap_queue.hpp"
 #include "shared_memory.hpp"
 
-
-
 constexpr size_t QUEUE_SIZE = 16384;
 constexpr size_t TEXT_SIZE = 256;
 
