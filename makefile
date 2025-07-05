@@ -28,14 +28,9 @@ DEBUG_FLAGS  := -g -O0 -DDEBUG
 RELEASE_FLAGS:= -O2 -DNDEBUG
 
 # === Build Type ===
-BUILD        ?= debug
-ifeq ($(BUILD),release)
-    CXXFLAGS += $(RELEASE_FLAGS)
-    BUILD_TYPE := Release
-else
-    CXXFLAGS += $(DEBUG_FLAGS)
-    BUILD_TYPE := Debug
-endif
+BUILD        := release
+CXXFLAGS     += $(RELEASE_FLAGS)
+BUILD_TYPE   := Release
 
 # === Source/Objects/Deps ===
 SRCS         := $(wildcard $(SRC_DIR)/*.cpp)
@@ -225,7 +220,7 @@ uninstall:
 help:
 	@echo "$(BLUE)Nexus Agent Build System (Ubuntu Only)$(NC)"
 	@echo ""
-	@echo "$(GREEN)Usage:$(NC) make [target] [BUILD=debug|release] [V=1]"
+	@echo "$(GREEN)Usage:$(NC) make [target] [V=1]"
 	@echo ""
 	@echo "$(GREEN)Build Targets:$(NC)"
 	@echo "  all        - Build both agent and reader (default)"
@@ -243,7 +238,6 @@ help:
 	@echo "  uninstall  - Remove from system"
 	@echo ""
 	@echo "$(GREEN)Variables:$(NC)"
-	@echo "  BUILD      - debug (default) or release"
 	@echo "  V          - Verbose build (V=1)"
 	@echo ""
 	@echo "$(GREEN)Dependencies:$(NC)"
