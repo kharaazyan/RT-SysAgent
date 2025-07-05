@@ -9,7 +9,7 @@
 #include <iostream>
 #include <cstdlib>
 #include <cstdio>
-#include "../external/json.hpp"
+#include "json.hpp"
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -82,7 +82,7 @@ inline std::string ipfs_add(const std::string& filepath) {
     std::string cmd = "ipfs add -q " + filepath;
     std::string output = run_command(cmd);
     if (!output.empty()) {
-        output.erase(output.find_last_not_of(" \n\r\t") + 1); // Trim
+        output.erase(output.find_last_not_of(" \n\r\t") + 1);
     } else {
         std::cerr << "[IPFS] Error: Could not add file.\n";
     }
@@ -102,7 +102,7 @@ inline std::vector<uint8_t> aes_gcm_encrypt(const std::string& plaintext,
                                             const std::vector<uint8_t>& key,
                                             std::vector<uint8_t>& out_iv,
                                             std::vector<uint8_t>& out_tag) {
-    const int iv_len = 12; 
+    const int iv_len = 12;
     out_iv = generate_random_bytes(iv_len);
     out_tag.resize(16);
 
@@ -181,8 +181,8 @@ inline void write_minimal_encrypted_json(const std::string& path,
     json j;
     j["d"] = base64_encode(ciphertext);      
     j["k"] = base64_encode(encrypted_key);    
-    j["n"] = base64_encode(iv);              
-    j["t"] = base64_encode(tag);             
+    j["n"] = base64_encode(iv);             
+    j["t"] = base64_encode(tag);           
 
     std::ofstream out(path, std::ios::trunc);
     if (!out) throw std::runtime_error("Cannot write encrypted payload file.");

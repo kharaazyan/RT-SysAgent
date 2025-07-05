@@ -5,7 +5,7 @@
 #include <fstream>
 #include <iostream>
 
-inline std::vector<std::string> load_patterns(const std::string &filepath = "./patterns.txt")
+inline std::vector<std::string> load_patterns(const std::string &filepath = "./tmp/pattern.txt")
 {
     std::vector<std::string> patterns;
     std::ifstream file(filepath);

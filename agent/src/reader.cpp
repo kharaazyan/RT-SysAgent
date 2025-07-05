@@ -17,7 +17,6 @@
 
 using json = nlohmann::json;
 
-// --- Constants ---
 constexpr size_t QUEUE_SIZE = 16384;
 constexpr size_t TEXT_SIZE = 256;
 constexpr int NUM_WORKERS = 4;
@@ -29,7 +28,6 @@ const std::string TMP_DIR = "./tmp";
 const std::string JSON_FILE = TMP_DIR + "/log_batch.json";
 const std::string IPNS_KEY = "log-agent";
 
-// --- Globals ---
 std::atomic<bool> g_running(true);
 std::mutex log_mutex;
 std::mutex cid_mutex;
@@ -38,7 +36,6 @@ std::string g_prev_cid = "null";
 std::string g_ipns_id = "";
 std::chrono::steady_clock::time_point last_push_time;
 
-// --- Data Structures ---
 struct RawEvent {
     uint8_t type; // 0 = SYSLOG_LINE, 1 = USB_EVENT
     uint64_t event_id;
@@ -46,12 +43,10 @@ struct RawEvent {
 };
 using QueueType = MmapQueue<RawEvent, QUEUE_SIZE>;
 
-// --- Signal Handler ---
 void signal_handler(int) {
     g_running = false;
 }
 
-// --- Utility: Fast system call wrapper ---
 int fast_system(const std::string& cmd) {
     std::array<char, 128> buffer;
     FILE* pipe = popen((cmd + " 2>&1").c_str(), "r");
@@ -60,7 +55,6 @@ int fast_system(const std::string& cmd) {
     return pclose(pipe);
 }
 
-// --- Resolve IPNS ID for key name ---
 std::string get_ipns_id_for_key(const std::string& key_name) {
     FILE* pipe = popen("ipfs key list -l", "r");
     if (!pipe) throw std::runtime_error("Failed to run 'ipfs key list -l'");
@@ -78,7 +72,6 @@ std::string get_ipns_id_for_key(const std::string& key_name) {
     throw std::runtime_error("IPNS key '" + key_name + "' not found.");
 }
 
-// --- IPNS Resolver ---
 std::string resolve_ipns(const std::string& ipns_id) {
     std::string cmd = "ipfs name resolve --nocache /ipns/" + ipns_id + " --timeout=5s";
     FILE* pipe = popen(cmd.c_str(), "r");
@@ -92,7 +85,6 @@ std::string resolve_ipns(const std::string& ipns_id) {
     return "null";
 }
 
-// --- Push Logic ---
 void push_log_bucket_if_needed(bool force = false) {
     std::lock_guard<std::mutex> lock(log_mutex);
     auto now = std::chrono::steady_clock::now();
@@ -113,7 +105,7 @@ void push_log_bucket_if_needed(bool force = false) {
     std::string payload = format_logs_json(raw_logs, prev_cid);
 
     try {
-        std::string pubkey_path = "./keys/public_key.pem";
+        std::string pubkey_path = "./agent/keys/public_key.pem";
         std::vector<uint8_t> aes_key = generate_random_bytes(32);
         std::vector<uint8_t> iv, tag;
         std::vector<uint8_t> ciphertext = aes_gcm_encrypt(payload, aes_key, iv, tag);
@@ -129,7 +121,6 @@ void push_log_bucket_if_needed(bool force = false) {
             g_prev_cid = cid;
         }
 
-        // --- Fast IPNS publish ---
         std::string publish_cmd =
             "ipfs name publish --key=" + IPNS_KEY +
             " --allow-offline --ttl=0s /ipfs/" + cid;
@@ -146,7 +137,6 @@ void push_log_bucket_if_needed(bool force = false) {
     }
 }
 
-// --- Worker Thread ---
 void worker_thread(int id, QueueType* queue) {
     while (g_running) {
         RawEvent ev{};
@@ -169,7 +159,6 @@ void worker_thread(int id, QueueType* queue) {
     }
 }
 
-// --- Periodic Flush Thread ---
 void periodic_flusher() {
     while (g_running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(FLUSHER_SLEEP_MS));
@@ -177,12 +166,10 @@ void periodic_flusher() {
     }
 }
 
-// --- Ensure Temp Directory ---
 void ensure_directories() {
     std::filesystem::create_directories(TMP_DIR);
 }
 
-// --- Main ---
 int main() {
     std::cout << ":rocket: Reader initializing...\n";
     signal(SIGINT, signal_handler);
@@ -215,5 +202,5 @@ int main() {
 
     push_log_bucket_if_needed(true);
     std::cout << ":checkered_flag: Reader shutdown.\n";
-    return 0;
+    exit(EXIT_SUCCESS);
 }

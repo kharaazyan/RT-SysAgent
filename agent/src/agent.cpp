@@ -224,5 +224,5 @@ int main() {
     t3.join();
 
     std::cout << "Agent stopped.\n";
-    return 0;
+    exit(EXIT_SUCCESS);
 }
