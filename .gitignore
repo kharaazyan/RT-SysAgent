@@ -1,5 +1,22 @@
-**/.vscode
-bin
-external
-deps
-build
+# Build artifacts
+build/
+bin/
+dist/
+
+# Dependencies
+deps/
+external/
+
+# Logs
+logs_output.jsonl
+
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db 
+
+push.sh
+sync.sh

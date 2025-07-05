@@ -105,7 +105,7 @@ void push_log_bucket_if_needed(bool force = false) {
     std::string payload = format_logs_json(raw_logs, prev_cid);
 
     try {
-        std::string pubkey_path = "./agent/keys/public_key.pem";
+        std::string pubkey_path = "./keys/public_key.pem";
         std::vector<uint8_t> aes_key = generate_random_bytes(32);
         std::vector<uint8_t> iv, tag;
         std::vector<uint8_t> ciphertext = aes_gcm_encrypt(payload, aes_key, iv, tag);

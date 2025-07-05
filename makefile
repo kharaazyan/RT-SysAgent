@@ -3,8 +3,8 @@ PROJECT      := agent
 VERSION      := 1.0.0
 
 # === Directories ===
-SRC_DIR      := agent/src
-INC_DIR      := agent/include
+SRC_DIR      := src
+INC_DIR      := include
 BUILD_DIR    := build
 BIN_DIR      := bin
 DIST_DIR     := dist
