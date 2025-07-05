@@ -84,7 +84,9 @@ inline std::string ipfs_add(const std::string& filepath) {
         std::cerr << "[IPFS] Warning: IPFS daemon not running!\n";
     }
 
-    std::string cmd = "ipfs add -q " + filepath;
+    // Escape the filepath for shell command
+    std::string escaped_path = "\"" + filepath + "\"";
+    std::string cmd = "ipfs add -q " + escaped_path;
     std::string output = run_command(cmd);
     if (!output.empty()) {
         output.erase(output.find_last_not_of(" \n\r\t") + 1);

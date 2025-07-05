@@ -25,9 +25,7 @@ constexpr int LOG_THRESHOLD = Config::WorkerConfig::LOG_THRESHOLD;
 constexpr int TIME_THRESHOLD_SECONDS = Config::WorkerConfig::TIME_THRESHOLD_SECONDS;
 constexpr int WORKER_SLEEP_MS = Config::WorkerConfig::WORKER_SLEEP_MS;
 constexpr int FLUSHER_SLEEP_MS = Config::WorkerConfig::FLUSHER_SLEEP_MS;
-const std::string TMP_DIR = Config::dirs.get_tmp_path();
-const std::string JSON_FILE = TMP_DIR + "/log_batch.json";
-const std::string IPNS_KEY = Config::ipfs.ipns_key_name;
+
 
 std::atomic<bool> g_running(true);
 std::mutex log_mutex;
@@ -111,7 +109,7 @@ void push_log_bucket_if_needed(bool force = false) {
         std::vector<uint8_t> iv, tag;
         std::vector<uint8_t> ciphertext = aes_gcm_encrypt(payload, aes_key, iv, tag);
         std::vector<uint8_t> encrypted_key = rsa_encrypt_key(aes_key, pubkey_path);
-        std::string encrypted_file = JSON_FILE + ".enc";
+        std::string encrypted_file = Config::dirs.get_tmp_path() + "/log_batch.json.enc";
         write_minimal_encrypted_json(encrypted_file, ciphertext, iv, tag, encrypted_key);
 
         std::string cid = ipfs_add(encrypted_file);
@@ -123,7 +121,7 @@ void push_log_bucket_if_needed(bool force = false) {
         }
 
         std::string publish_cmd =
-            "ipfs name publish --key=" + IPNS_KEY +
+            "ipfs name publish --key=" + Config::ipfs.ipns_key_name +
             " --allow-offline --ttl=" + std::to_string(Config::IPFSConfig::IPNS_TTL_SECONDS) + "s /ipfs/" + cid;
         int ret = fast_system(publish_cmd);
         if (ret == 0)
@@ -168,7 +166,7 @@ void periodic_flusher() {
 }
 
 void ensure_directories() {
-    std::filesystem::create_directories(TMP_DIR);
+    std::filesystem::create_directories(Config::dirs.get_tmp_path());
 }
 
 int main() {
@@ -184,7 +182,7 @@ int main() {
     ensure_directories();
 
     try {
-        g_ipns_id = get_ipns_id_for_key(IPNS_KEY);
+        g_ipns_id = get_ipns_id_for_key(Config::ipfs.ipns_key_name);
         g_prev_cid = resolve_ipns(g_ipns_id);
         std::cout << "[IPNS] Bootstrapped from: " << g_prev_cid << "\n";
     } catch (const std::exception& e) {
