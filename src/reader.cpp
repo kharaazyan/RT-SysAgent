@@ -14,19 +14,20 @@
 #include "mmap_queue.hpp"
 #include "log_utils.hpp"
 #include "json.hpp"
+#include "config.hpp"
 
 using json = nlohmann::json;
 
-constexpr size_t QUEUE_SIZE = 16384;
-constexpr size_t TEXT_SIZE = 256;
-constexpr int NUM_WORKERS = 4;
-constexpr int LOG_THRESHOLD = 50;
-constexpr int TIME_THRESHOLD_SECONDS = 4;
-constexpr int WORKER_SLEEP_MS = 1;
-constexpr int FLUSHER_SLEEP_MS = 1000;
-const std::string TMP_DIR = "./tmp";
+constexpr size_t QUEUE_SIZE = Config::QueueConfig::DEFAULT_QUEUE_SIZE;
+constexpr size_t TEXT_SIZE = Config::QueueConfig::DEFAULT_TEXT_SIZE;
+constexpr int NUM_WORKERS = Config::WorkerConfig::DEFAULT_NUM_WORKERS;
+constexpr int LOG_THRESHOLD = Config::WorkerConfig::LOG_THRESHOLD;
+constexpr int TIME_THRESHOLD_SECONDS = Config::WorkerConfig::TIME_THRESHOLD_SECONDS;
+constexpr int WORKER_SLEEP_MS = Config::WorkerConfig::WORKER_SLEEP_MS;
+constexpr int FLUSHER_SLEEP_MS = Config::WorkerConfig::FLUSHER_SLEEP_MS;
+const std::string TMP_DIR = Config::dirs.get_tmp_path();
 const std::string JSON_FILE = TMP_DIR + "/log_batch.json";
-const std::string IPNS_KEY = "log-agent";
+const std::string IPNS_KEY = Config::ipfs.ipns_key_name;
 
 std::atomic<bool> g_running(true);
 std::mutex log_mutex;
@@ -105,7 +106,7 @@ void push_log_bucket_if_needed(bool force = false) {
     std::string payload = format_logs_json(raw_logs, prev_cid);
 
     try {
-        std::string pubkey_path = "./keys/public_key.pem";
+        std::string pubkey_path = Config::encryption.public_key_path;
         std::vector<uint8_t> aes_key = generate_random_bytes(32);
         std::vector<uint8_t> iv, tag;
         std::vector<uint8_t> ciphertext = aes_gcm_encrypt(payload, aes_key, iv, tag);
@@ -123,7 +124,7 @@ void push_log_bucket_if_needed(bool force = false) {
 
         std::string publish_cmd =
             "ipfs name publish --key=" + IPNS_KEY +
-            " --allow-offline --ttl=0s /ipfs/" + cid;
+            " --allow-offline --ttl=" + std::to_string(Config::IPFSConfig::IPNS_TTL_SECONDS) + "s /ipfs/" + cid;
         int ret = fast_system(publish_cmd);
         if (ret == 0)
             std::cout << "[IPNS] Head updated to: " << cid << "\n";
@@ -172,6 +173,11 @@ void ensure_directories() {
 
 int main() {
     std::cout << ":rocket: Reader initializing...\n";
+    
+    // Initialize configuration
+    Config::initialize_config();
+    Config::load_config_from_file();
+    
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
 
@@ -185,7 +191,7 @@ int main() {
         std::cerr << "[IPNS] Could not bootstrap IPNS: " << e.what() << "\n";
     }
 
-    SharedMemory<QueueType> shm(TMP_DIR + "/event_queue_shm", false);
+    SharedMemory<QueueType> shm(Config::shared_memory.queue_file_path, false);
     QueueType* queue = shm.get();
 
     log_bucket.reserve(LOG_THRESHOLD * 2);

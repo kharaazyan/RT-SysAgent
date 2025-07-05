@@ -22,7 +22,7 @@ WGET         := wget
 GIT          := git
 
 # === Flags ===
-CXXFLAGS     := -std=c++20 -Wall -Wextra -I$(INC_DIR) -I$(EXTERNAL_DIR) -pthread
+CXXFLAGS     := -std=c++20 -Wall -Wextra -I$(INC_DIR) -I$(EXTERNAL_DIR) -I. -pthread -Wno-deprecated-declarations
 LDFLAGS      := -pthread -ludev -lsystemd -lcrypto
 DEBUG_FLAGS  := -g -O0 -DDEBUG
 RELEASE_FLAGS:= -O2 -DNDEBUG
@@ -37,9 +37,14 @@ SRCS         := $(wildcard $(SRC_DIR)/*.cpp)
 OBJS         := $(patsubst $(SRC_DIR)/%.cpp,$(BUILD_DIR)/%.o,$(SRCS))
 DEPS         := $(OBJS:.o=.d)
 
+# Add config.cpp to all targets
+SRCS         += config.cpp
+OBJS         += $(BUILD_DIR)/config.o
+
 # === Executable(s) ===
 TARGET       := $(BIN_DIR)/$(PROJECT)
 READER_TARGET := $(BIN_DIR)/reader
+CONFIG_GENERATOR := $(BIN_DIR)/config_generator
 
 # === Colors ===
 GREEN        := \033[0;32m
@@ -60,6 +65,10 @@ endif
 IPFS_URL := https://dist.ipfs.tech/kubo/v0.22.0/kubo_v0.22.0_linux-amd64.tar.gz
 NLOHMANN_JSON_URL := https://github.com/nlohmann/json/releases/download/v3.12.0/json.hpp
 AHO_CORASICK_URL := https://raw.githubusercontent.com/cjgdev/aho_corasick/master/src/aho_corasick/aho_corasick.hpp
+
+# === Configuration ===
+CONFIG_DIR := config
+CONFIG_FILE := $(CONFIG_DIR)/settings.json
 
 # === Dependency Checks ===
 .PHONY: check-deps install-deps check-ipfs install-ipfs download-external-deps check-system-libs
@@ -104,6 +113,7 @@ install-ipfs:
 		tar -xzf ipfs.tar.gz && \
 		sudo cp kubo/ipfs /usr/local/bin/ && \
 		rm -rf kubo ipfs.tar.gz
+	@rm -rf $(DEPS_DIR)
 	@echo "$(GREEN)[✔] IPFS installed successfully$(NC)"
 
 # Download external dependencies
@@ -151,14 +161,20 @@ install-deps: check-deps download-external-deps
 	@echo "$(GREEN)[✔] Dependencies installation complete$(NC)"
 
 # === Build Targets ===
-.PHONY: all clean rebuild install uninstall test lint format docs help deps agent reader
+.PHONY: all clean rebuild install uninstall test lint format docs help deps agent reader config
 
 # Default target
-all: deps agent reader
+all: deps agent reader config-generator config
 	@echo "$(GREEN)[✔] Build complete ($(BUILD_TYPE))$(NC)"
 
 # Dependencies target
 deps: install-deps
+
+# Configuration target
+config: config-generator
+	@echo "$(BLUE)[INFO] Creating default configuration...$(NC)"
+	@mkdir -p $(CONFIG_DIR)
+	./bin/config_generator
 
 # Build agent executable
 agent: $(BIN_DIR)/agent
@@ -168,11 +184,19 @@ agent: $(BIN_DIR)/agent
 reader: $(BIN_DIR)/reader
 	@echo "$(GREEN)[✔] Reader built successfully$(NC)"
 
-$(BIN_DIR)/agent: $(BUILD_DIR)/agent.o | $(BIN_DIR) $(BUILD_DIR)
+# Build config generator executable
+config-generator: $(BIN_DIR)/config_generator
+	@echo "$(GREEN)[✔] Config generator built successfully$(NC)"
+
+$(BIN_DIR)/agent: $(BUILD_DIR)/agent.o $(BUILD_DIR)/config.o | $(BIN_DIR) $(BUILD_DIR)
 	@echo "$(YELLOW)[Linking] $@$(NC)"
 	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
-$(BIN_DIR)/reader: $(BUILD_DIR)/reader.o | $(BIN_DIR) $(BUILD_DIR)
+$(BIN_DIR)/reader: $(BUILD_DIR)/reader.o $(BUILD_DIR)/config.o | $(BIN_DIR) $(BUILD_DIR)
+	@echo "$(YELLOW)[Linking] $@$(NC)"
+	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
+
+$(BIN_DIR)/config_generator: $(BUILD_DIR)/config_generator.o $(BUILD_DIR)/config.o | $(BIN_DIR) $(BUILD_DIR)
 	@echo "$(YELLOW)[Linking] $@$(NC)"
 	$(Q)$(CXX) $(CXXFLAGS) $^ -o $@ $(LDFLAGS)
 
@@ -180,17 +204,22 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.cpp | $(BUILD_DIR)
 	@echo "$(YELLOW)[Compiling] $<$(NC)"
 	$(Q)$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
 
-$(BUILD_DIR) $(BIN_DIR) $(DIST_DIR) $(DEPS_DIR) $(EXTERNAL_DIR):
+$(BUILD_DIR)/config.o: config.cpp | $(BUILD_DIR)
+	@echo "$(YELLOW)[Compiling] $<$(NC)"
+	$(Q)$(CXX) $(CXXFLAGS) -MMD -c $< -o $@
+
+$(BUILD_DIR) $(BIN_DIR) $(DIST_DIR) $(EXTERNAL_DIR):
 	$(Q)$(MKDIR) $@
 
 -include $(DEPS)
 
 clean:
 	$(Q)$(RM) $(BUILD_DIR) $(BIN_DIR) $(DIST_DIR)
+	$(Q)$(RM) $(CONFIG_FILE)
 	@echo "$(GREEN)[✔] Cleaned$(NC)"
 
 clean-deps:
-	$(Q)$(RM) $(DEPS_DIR)
+	$(Q)$(RM) -rf $(DEPS_DIR) 2>/dev/null || true
 	@echo "$(GREEN)[✔] Dependencies cleaned$(NC)"
 
 clean-external:
@@ -198,6 +227,9 @@ clean-external:
 	@echo "$(GREEN)[✔] External libraries cleaned$(NC)"
 
 clean-all: clean clean-deps clean-external
+	$(Q)$(RM) -rf $(CONFIG_DIR)
+	$(Q)$(RM) -rf tmp/
+	$(Q)$(RM) -rf logs/
 	@echo "$(GREEN)[✔] All cleaned$(NC)"
 
 rebuild: clean all

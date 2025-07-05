@@ -3,8 +3,9 @@
 #include <thread>
 #include <cassert>
 #include <cstdint>
+#include "config.hpp"
 
-constexpr size_t CACHELINE = 64;
+constexpr size_t CACHELINE = Config::QueueConfig::CACHE_LINE_SIZE;
 
 template<typename T>
 struct alignas(CACHELINE) Slot {
@@ -38,7 +39,7 @@ struct alignas(CACHELINE) MmapQueue {
     }
 
     bool enqueue(const T& item) {
-        for (int i = 0; i < 10000; ++i) {
+        for (int i = 0; i < Config::QueueConfig::MAX_RETRY_ATTEMPTS; ++i) {
             size_t pos = tail.fetch_add(1, std::memory_order_acq_rel) & (N - 1);
             auto& slot = slots[pos];
 
@@ -48,13 +49,13 @@ struct alignas(CACHELINE) MmapQueue {
                 slot.state.store(FULL, std::memory_order_release);
                 return true;
             }
-            std::this_thread::yield();
+            std::this_thread::sleep_for(std::chrono::milliseconds(Config::QueueConfig::YIELD_SLEEP_MS));
         }
         return false;
     }
 
     bool dequeue(T& out) {
-        for (int i = 0; i < 10000; ++i) {
+        for (int i = 0; i < Config::QueueConfig::MAX_RETRY_ATTEMPTS; ++i) {
             size_t pos = head.fetch_add(1, std::memory_order_acq_rel) & (N - 1);
             auto& slot = slots[pos];
 
@@ -64,7 +65,7 @@ struct alignas(CACHELINE) MmapQueue {
                 slot.state.store(EMPTY, std::memory_order_release);
                 return true;
             }
-            std::this_thread::yield();
+            std::this_thread::sleep_for(std::chrono::milliseconds(Config::QueueConfig::YIELD_SLEEP_MS));
         }
         return false;
     }

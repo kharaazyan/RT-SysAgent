@@ -21,9 +21,10 @@
 #include "mmap_queue.hpp"
 #include "shared_memory.hpp"
 #include "patterns.hpp"
+#include "config.hpp"
 
-constexpr size_t QUEUE_SIZE = 16384;
-constexpr size_t TEXT_SIZE = 256;
+constexpr size_t QUEUE_SIZE = Config::QueueConfig::DEFAULT_QUEUE_SIZE;
+constexpr size_t TEXT_SIZE = Config::QueueConfig::DEFAULT_TEXT_SIZE;
 
 struct RawEvent {
     uint8_t type; // 0 = SYSLOG_LINE, 1 = USB_EVENT, 2 = FILE_DELETE
@@ -40,13 +41,13 @@ void signal_handler(int) {
 }
 
 void syslog_monitor(QueueType* queue) {
-    const char* SYSLOG_PATH = "/var/log/syslog";
+    const std::string& SYSLOG_PATH = Config::system_monitor.syslog_path;
 
     auto patterns = load_patterns();
     aho_corasick::trie trie;
     for (const auto& pat : patterns) trie.insert(pat);
 
-    int fd = open(SYSLOG_PATH, O_RDONLY);
+    int fd = open(SYSLOG_PATH.c_str(), O_RDONLY);
     if (fd < 0) return;
 
     struct stat st;
@@ -54,14 +55,15 @@ void syslog_monitor(QueueType* queue) {
     off_t last_offset = st.st_size;
 
     int inotify_fd = inotify_init1(IN_NONBLOCK);
-    int wd = inotify_add_watch(inotify_fd, SYSLOG_PATH, IN_MODIFY);
+    int wd = inotify_add_watch(inotify_fd, SYSLOG_PATH.c_str(), IN_MODIFY);
 
-    char buf[8192];
+    char buf[Config::SystemMonitorConfig::SYSLOG_BUFFER_SIZE];
     while (g_running) {
         pollfd pfd{inotify_fd, POLLIN, 0};
-        if (poll(&pfd, 1, 500) <= 0) continue;
+        if (poll(&pfd, 1, Config::WorkerConfig::MONITOR_POLL_MS) <= 0) continue;
 
-        read(inotify_fd, buf, sizeof(buf));
+        ssize_t inotify_bytes = read(inotify_fd, buf, sizeof(buf));
+        if (inotify_bytes < 0) continue;
 
         fstat(fd, &st);
         if (st.st_size <= last_offset) continue;
@@ -69,7 +71,8 @@ void syslog_monitor(QueueType* queue) {
         size_t to_read = st.st_size - last_offset;
         lseek(fd, last_offset, SEEK_SET);
         std::string data(to_read, '\0');
-        read(fd, data.data(), to_read);
+        ssize_t syslog_bytes = read(fd, data.data(), to_read);
+        if (syslog_bytes < 0) continue;
         last_offset = st.st_size;
 
         size_t pos = 0;
@@ -104,7 +107,7 @@ void usb_monitor(QueueType* queue) {
 
     while (g_running) {
         pollfd pfd{fd, POLLIN, 0};
-        if (poll(&pfd, 1, 500) <= 0) continue;
+        if (poll(&pfd, 1, Config::WorkerConfig::MONITOR_POLL_MS) <= 0) continue;
 
         struct udev_device* dev = udev_monitor_receive_device(mon);
         if (!dev) continue;
@@ -136,11 +139,7 @@ void usb_monitor(QueueType* queue) {
 }
 
 void file_delete_monitor(QueueType* queue) {
-    const std::vector<std::string> watch_paths = {
-        std::string(std::getenv("HOME")) + "/Documents",
-        "/etc",
-        std::string(std::getenv("HOME")) + "/Desktop"
-    };
+    const std::vector<std::string>& watch_paths = Config::file_monitor.watch_paths;
 
     int inotify_fd = inotify_init1(IN_NONBLOCK);
     if (inotify_fd < 0) {
@@ -159,10 +158,10 @@ void file_delete_monitor(QueueType* queue) {
         }
     }
 
-    char buf[8192];
+    char buf[Config::FileMonitorConfig::INOTIFY_BUFFER_SIZE];
     while (g_running) {
         pollfd pfd{inotify_fd, POLLIN, 0};
-        if (poll(&pfd, 1, 500) <= 0) continue;
+        if (poll(&pfd, 1, Config::WorkerConfig::MONITOR_POLL_MS) <= 0) continue;
 
         ssize_t len = read(inotify_fd, buf, sizeof(buf));
         if (len <= 0) continue;
@@ -202,11 +201,16 @@ void file_delete_monitor(QueueType* queue) {
 
 int main() {
     std::cout << "Agent starting...\n";
+    
+    // Initialize configuration
+    Config::initialize_config();
+    Config::load_config_from_file();
+    
     signal(SIGINT, signal_handler);
     signal(SIGTERM, signal_handler);
     sd_notify(0, "READY=1");
 
-    SharedMemory<QueueType> shm("./tmp/event_queue_shm", true);
+    SharedMemory<QueueType> shm(Config::shared_memory.queue_file_path, true);
     QueueType* queue = shm.get();
     queue->init();
 

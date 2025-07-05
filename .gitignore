@@ -1,22 +1,61 @@
-# Build artifacts
+# === Build artifacts ===
 build/
 bin/
 dist/
+*.o
+*.obj
+*.so
+*.a
+*.out
+*.exe
 
-# Dependencies
-deps/
+# === Dependencies ===
 external/
 
-# Logs
-logs_output.jsonl
-
-.vscode/
-.idea/
+# === Logs and runtime ===
+logs/
+*.log
+*.pid
+*.tmp
+*.bak
 *.swp
 *.swo
+*.swn
+*.old
 
-# OS
-Thumbs.db 
+# === Config and generated files ===
+config/settings.json
+config/*.bak
+config/*.tmp
 
-push.sh
-sync.sh
+# === Keys and secrets ===
+keys/
+!keys/.gitkeep
+
+# === Temp files ===
+tmp/
+!.gitkeep
+
+# === IDE/editor ===
+.vscode/
+.idea/
+*.user
+*.workspace
+*.code-workspace
+*.sublime-*
+*.DS_Store
+
+# === OS files ===
+Thumbs.db
+.DS_Store
+
+# === Environment files ===
+# .env (deprecated - using config.hpp instead)
+# !.env.example
+
+# === IPFS files ===
+.ipfs/
+
+# === System files ===
+*.shm
+event_queue_shm

@@ -10,6 +10,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include "json.hpp"
+#include "config.hpp"
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
@@ -34,10 +35,14 @@ inline std::string current_timestamp() {
     ss << '.' << std::setw(3) << std::setfill('0') << ms.count() << "Z";
     return ss.str();
 }
-inline std::string read_prev_cid(const std::string& filepath = "./tmp/prev_cid.txt") {
-    std::ifstream in(filepath);
+inline std::string read_prev_cid(const std::string& filepath = "") {
+    std::string actual_filepath = filepath;
+    if (actual_filepath.empty()) {
+        actual_filepath = Config::dirs.get_tmp_path() + "/prev_cid.txt";
+    }
+    std::ifstream in(actual_filepath);
     if (!in.is_open()) {
-        std::ofstream create(filepath);
+        std::ofstream create(actual_filepath);
         return "null";
     }
     std::string cid;

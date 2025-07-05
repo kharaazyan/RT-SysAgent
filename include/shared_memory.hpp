@@ -6,13 +6,14 @@
 #include <stdexcept>
 #include <cstring>
 #include <string>
+#include "config.hpp"
 
 template<typename T>
 class SharedMemory {
 public:
     SharedMemory(const std::string& path, bool create) : fd(-1), data(nullptr), size(sizeof(T)) {
         int flags = create ? (O_CREAT | O_RDWR) : O_RDWR;
-        fd = open(path.c_str(), flags, 0666);
+        fd = open(path.c_str(), flags, Config::SharedMemoryConfig::FILE_PERMISSIONS);
         if (fd == -1) {
             throw std::runtime_error("Failed to open shared memory file: " + path + " err: " + strerror(errno));
         }
