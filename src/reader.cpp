@@ -69,7 +69,7 @@ std::string get_ipns_id_for_key(const std::string& key_name) {
         }
     }
     pclose(pipe);
-    throw std::runtime_error("IPNS key '" + key_name + "' not found.");
+    throw std::runtime_error("IPNS key '" + key_name + "' not found.\nTry: ipfs key gen log-agent --type=rsa --size=2048\nipfs daemon --routing=dhtclient\n");
 }
 
 std::string resolve_ipns(const std::string& ipns_id) {
