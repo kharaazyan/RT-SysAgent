@@ -142,7 +142,7 @@ void worker_thread(int id, QueueType* queue) {
         if (queue->dequeue(ev)) {
             json log_entry = {
                 {"event_id", ev.event_id},
-                {"type", ev.type == 0 ? "SYSLOG" : ev.type == 1 ? "USB" : "UNKNOWN"},
+                {"type", ev.type == 0 ? "SYSLOG" : ev.type == 1 ? "USB" : "SYSTEM"},
                 {"message", std::string(ev.text)},
                 {"timestamp", current_timestamp()}
             };
